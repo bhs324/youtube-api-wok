@@ -1,4 +1,6 @@
-/dist
+# NPM
+dist/
+package/
 
 # macOS
 .DS_Store
