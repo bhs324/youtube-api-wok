@@ -16,21 +16,36 @@ export default async function ({
   videoEmbeddable,
   type,
 }: SearchParamProps): Promise<SearchResultType> {
-  const hl = relevanceLanguage || 'en';
-  const gl = regionCode || 'US';
+  const hl = relevanceLanguage ? relevanceLanguage.toLowerCase() : 'en';
+  const gl = regionCode ? regionCode.toUpperCase() : 'US';
+
+  console.log('lang', relevanceLanguage, hl, 'country', regionCode, gl);
 
   if (key && pageToken) {
-    const { data } = await innertubeApi.post(`search?key=${key}`, {
+    let data: any;
+    const postData = {
       context: {
         client: {
           clientName: 'WEB',
-          clientVersion: '2.20210813.00.00',
+          clientVersion: '2.20210820.01.00',
           hl,
           gl,
         },
       },
       continuation: pageToken,
-    });
+    };
+
+    try {
+      // const {data} = await innertubeApi.post(`search?key=${key}`, {
+      const { data: _data } = await innertubeApi.post(`search?key=${key}`, postData);
+      data = _data;
+    } catch (e) {
+      console.error('fetch more failed', e);
+      console.log(`curl 'https://www.youtube.com/youtubei/v1/search?key=${key}' -H 'content-type: application/json' --data-raw '${JSON.stringify(postData)}' --compressed`);
+      throw e;
+    }
+
+    console.log('props', Object.keys(data));
 
     const { items, nextPageToken } = parseSearch(
       data.onResponseReceivedCommands[0].appendContinuationItemsAction.continuationItems,
@@ -131,6 +146,7 @@ function parseSearch(contents: any, type?: SearchType): Omit<SearchResultType, '
           }
         });
       } else if (sectionList.hasOwnProperty('continuationItemRenderer')) {
+        console.log('sectionList.continuationItemRenderer', encodeURIComponent(JSON.stringify(sectionList.continuationItemRenderer.continuationEndpoint.continuationCommand.token)));
         result.nextPageToken = sectionList.continuationItemRenderer.continuationEndpoint.continuationCommand.token;
       }
     } catch (ex) {
