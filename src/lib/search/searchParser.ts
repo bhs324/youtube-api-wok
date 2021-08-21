@@ -41,6 +41,46 @@ export function parseVideoRenderer(data: any): SearchResource {
   };
 }
 
+export function parseCompactVideoRenderer(data: any): SearchResource {
+  if (!data) throw new Error('No data specified to parse');
+  let title = '';
+  title = data.title.runs[0].text;
+  title = title.replace('\\\\', '\\');
+  try {
+    title = decodeURIComponent(title);
+  } catch (e) {
+    // @ts-ignore
+  }
+
+  return {
+    id: {
+      kind: 'youtube#video',
+      videoId: data.videoId,
+    },
+    snippet: {
+      publishedAt: data.publishedTimeText ? data.publishedTimeText.runs[0].text : null,
+      title,
+      description: '',
+      thumbnails: {
+        default: data.thumbnail.thumbnails[0],
+        high: data.thumbnail.thumbnails[data.thumbnail.thumbnails.length - 1],
+      },
+      channelId: data.shortBylineText.runs[0].navigationEndpoint.browseEndpoint.browseId,
+      channelTitle: data.shortBylineText.runs[0].text,
+      channelIcon: data.channelThumbnail.thumbnails[0].url,
+    },
+    contentDetails: {
+      duration: data.lengthText ? data.lengthText.runs[0].text : null,
+    },
+    statistics: {
+      viewCount:
+        data.viewCountText && data.viewCountText.runs
+          ? parseInt(data.viewCountText.runs[0].text.replace(/[^0-9]/g, ''))
+          : 0,
+    },
+  };
+}
+
 export function parseChannelRenderer(data: any): SearchResource {
   if (!data) throw new Error('No data specified to parse');
   let title = '';

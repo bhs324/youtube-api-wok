@@ -1,6 +1,11 @@
 import { fetchWeb, innertubeApi } from '../api';
 import { SearchParamProps, SearchResource, SearchResultType, SearchType } from '../../types/search';
-import { parseChannelRenderer, parsePlaylistRenderer, parseVideoRenderer } from './searchParser';
+import {
+  parseChannelRenderer,
+  parseCompactVideoRenderer,
+  parsePlaylistRenderer,
+  parseVideoRenderer,
+} from './searchParser';
 
 export default async function ({
   q,
@@ -50,11 +55,29 @@ export default async function ({
       if (!(match && match.length > 1)) {
         match = searchRes.data.match(/ytInitialData"[^{]*(.*);\s*window\["ytInitialPlayerResponse"\]/s);
       }
-      const data = JSON.parse(match[1]);
-      const {items, nextPageToken} = parseSearch(
-        data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents,
-        type,
-      );
+      let data;
+      let items;
+      let nextPageToken;
+      try {
+        data = JSON.parse(match[1]);
+        const search = parseSearch(
+          data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents,
+          type,
+        );
+        items = search.items;
+        nextPageToken = search.nextPageToken;
+      } catch (e) {
+        match = searchRes.data.match(/ytInitialData\s*=\s*(.*);<\/script>/s);
+        // eslint-disable-next-line no-eval
+        const evalData = eval(match[1]);
+        data = JSON.parse(unescape(evalData));
+        const search = parseSearch(
+          data.contents.sectionListRenderer.contents,
+          type,
+        );
+        items = search.items;
+        nextPageToken = search.nextPageToken;
+      }
 
       return {
         innertubeApiKey,
@@ -86,6 +109,12 @@ function parseSearch(contents: any, type?: SearchType): Omit<SearchResultType, '
             }
             if ((!type || type === 'video') && content.hasOwnProperty('videoRenderer')) {
               const video = parseVideoRenderer(content.videoRenderer);
+              if (video) {
+                result.items.push(video);
+              }
+            }
+            if ((!type || type === 'video') && content.hasOwnProperty('compactVideoRenderer')) {
+              const video = parseCompactVideoRenderer(content.compactVideoRenderer);
               if (video) {
                 result.items.push(video);
               }
