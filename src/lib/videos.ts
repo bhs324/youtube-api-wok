@@ -8,21 +8,33 @@ export default async function videos({ id, hl }: VideoParamProps): Promise<Video
     if (!(match && match.length > 1)) {
       match = videoRes.data.match(/ytInitialData"[^{]*(.*);\s*window\["ytInitialPlayerResponse"\]/s);
     }
-    const data = JSON.parse(match[1]);
-    const { contents } = data.contents.twoColumnWatchNextResults.results.results;
+    let data;
+    try {
+      data = JSON.parse(match[1]);
+    } catch (e) {
+      match = match[1].match(/ytInitialPlayerResponse[^{]*(.*)/s);
+      data = JSON.parse(match[1]);
+    }
 
-    return parseVideo(
-      data.currentVideoEndpoint.watchEndpoint.videoId,
-      contents.find((c: any) => c.hasOwnProperty('videoPrimaryInfoRenderer'))?.videoPrimaryInfoRenderer,
-      contents.find((c: any) => c.hasOwnProperty('videoSecondaryInfoRenderer'))?.videoSecondaryInfoRenderer,
-    );
+    if (data.contents) {
+      return parseVideoInfoRenderer(data);
+    } else if (data.microformat) {
+      return parseMicroFormatRenderer(data);
+    } else {
+      throw new Error('Failed to parse video data.\n' + data);
+    }
   } else {
     throw new Error(videoRes.statusText);
   }
 }
 
-function parseVideo(videoId: string, primaryInfo: any, secondaryInfo: any): VideoResultType {
-  const _rawDescription = secondaryInfo.description.runs.map((r: any) => ({
+function parseVideoInfoRenderer(data: any): VideoResultType {
+  const {videoId} = data.currentVideoEndpoint.watchEndpoint;
+  const contents = data.contents.twoColumnWatchNextResults.results.results.contents;
+  const primaryRenderer = contents.find((c: any) => c.hasOwnProperty('videoPrimaryInfoRenderer'))?.videoPrimaryInfoRenderer;
+  const secondaryRenderer = contents.find((c: any) => c.hasOwnProperty('videoSecondaryInfoRenderer'))?.videoSecondaryInfoRenderer;
+
+  const _rawDescription = secondaryRenderer.description.runs.map((r: any) => ({
     text: r.text,
     url: r.navigationEndpoint?.commandMetadata.webCommandMetadata.url,
   }));
@@ -30,21 +42,39 @@ function parseVideo(videoId: string, primaryInfo: any, secondaryInfo: any): Vide
   return {
     id: videoId,
     snippet: {
-      publishedAt: primaryInfo.dateText.simpleText,
-      title: primaryInfo.title.runs[0].text,
+      publishedAt: primaryRenderer.dateText.simpleText,
+      title: primaryRenderer.title.runs[0].text,
       _rawDescription,
       description: _rawDescription.map((r: any) => r.text).join(''),
-      channelId: secondaryInfo.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId,
+      channelId: secondaryRenderer.owner.videoOwnerRenderer.title.runs[0].navigationEndpoint.browseEndpoint.browseId,
       channelIcon:
-        secondaryInfo.owner.videoOwnerRenderer.thumbnail.thumbnails[
-          secondaryInfo.owner.videoOwnerRenderer.thumbnail.thumbnails.length - 1
-        ],
-      channelTitle: secondaryInfo.owner.videoOwnerRenderer.title.runs[0].text,
+        secondaryRenderer.owner.videoOwnerRenderer.thumbnail.thumbnails[
+          secondaryRenderer.owner.videoOwnerRenderer.thumbnail.thumbnails.length - 1
+        ].url,
+      channelTitle: secondaryRenderer.owner.videoOwnerRenderer.title.runs[0].text,
     },
     statistics: {
-      viewCount: primaryInfo.viewCount.videoViewCountRenderer?.viewCount?.simpleText
-        ? parseInt(primaryInfo.viewCount.videoViewCountRenderer.viewCount.simpleText.replace(/[^0-9]/g, ''))
+      viewCount: primaryRenderer.viewCount.videoViewCountRenderer?.viewCount?.simpleText
+        ? parseInt(primaryRenderer.viewCount.videoViewCountRenderer.viewCount.simpleText.replace(/[^0-9]/g, ''))
         : 0,
     },
   };
+}
+
+function parseMicroFormatRenderer(data: any) {
+  const {videoDetails, microformat: {playerMicroformatRenderer: microRenderer}} = data;
+
+  return {
+    id: videoDetails.videoId,
+    snippet: {
+      publishedAt: microRenderer.publishDate,
+      title: videoDetails.title,
+      description: microRenderer.description.runs[0].text,
+      channelId: videoDetails.channelId,
+      channelTitle: microRenderer.ownerChannelName,
+    },
+    statistics: {
+      viewCount: microRenderer.viewCount,
+    },
+  }
 }

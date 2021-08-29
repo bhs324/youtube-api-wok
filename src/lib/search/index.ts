@@ -45,8 +45,6 @@ export default async function ({
       throw e;
     }
 
-    console.log('props', Object.keys(data));
-
     const { items, nextPageToken } = parseSearch(
       data.onResponseReceivedCommands[0].appendContinuationItemsAction.continuationItems,
       type,
