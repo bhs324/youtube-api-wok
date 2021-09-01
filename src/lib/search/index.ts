@@ -19,7 +19,7 @@ export default async function ({
   const hl = relevanceLanguage ? relevanceLanguage.toLowerCase() : 'en';
   const gl = regionCode ? regionCode.toUpperCase() : 'US';
 
-  console.log('lang', relevanceLanguage, hl, 'country', regionCode, gl);
+  // console.log('lang', relevanceLanguage, hl, 'country', regionCode, gl);
 
   if (key && pageToken) {
     let data: any;
@@ -144,7 +144,7 @@ function parseSearch(contents: any, type?: SearchType): Omit<SearchResultType, '
           }
         });
       } else if (sectionList.hasOwnProperty('continuationItemRenderer')) {
-        console.log('sectionList.continuationItemRenderer', encodeURIComponent(JSON.stringify(sectionList.continuationItemRenderer.continuationEndpoint.continuationCommand.token)));
+        // console.log('sectionList.continuationItemRenderer', encodeURIComponent(JSON.stringify(sectionList.continuationItemRenderer.continuationEndpoint.continuationCommand.token)));
         result.nextPageToken = sectionList.continuationItemRenderer.continuationEndpoint.continuationCommand.token;
       }
     } catch (ex) {

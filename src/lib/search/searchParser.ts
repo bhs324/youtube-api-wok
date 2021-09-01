@@ -25,8 +25,8 @@ export function parseVideoRenderer(data: any): SearchResource {
         default: data.thumbnail.thumbnails[0],
         high: data.thumbnail.thumbnails[data.thumbnail.thumbnails.length - 1],
       },
-      channelId: data.ownerText.runs[0].navigationEndpoint.browseEndpoint.browseId,
-      channelTitle: data.ownerText.runs[0].text,
+      channelId: data.ownerText?.runs[0].navigationEndpoint.browseEndpoint.browseId,
+      channelTitle: data.ownerText?.runs[0].text,
       channelIcon: data.channelThumbnailSupportedRenderers.channelThumbnailWithLinkRenderer.thumbnail.thumbnails[0].url,
     },
     contentDetails: {
